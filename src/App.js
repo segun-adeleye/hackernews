@@ -4,10 +4,13 @@ import './App.css';
 
 const DEFAULT_QUERY = 'redux';
 const DEFAULT_PAGE = 0;
+const DEFAULT_HITS_PER_PAGE = 100;
+
 const PATH_BASE = 'https://hn.algolia.com/api/v1';
 const PATH_SEARCH = '/search';
 const PARAM_SEARCH = 'query=';
 const PARAM_PAGE = 'page='
+const PARAM_HITS_PER_PAGE = 'hitsPerPage=';
 // const URL = `${PATH_BASE}${PATH_SEARCH}?${PARAM_SEARCH}`;
 
 /**
@@ -53,11 +56,17 @@ class App extends Component {
   }
 
   setTopStories(result) {
-    this.setState({ result })
+    const { hits, page } = result;
+    const oldHits = page !== 0 ? this.state.result.hits : [];
+    const updatedHits = [ ...oldHits, ...hits ];
+
+    this.setState({
+      result: { hits: updatedHits, page }
+    });
   }
 
   fetchTopStories(searchTerm, page) {
-    fetch(`${PATH_BASE}${PATH_SEARCH}?${PARAM_SEARCH}${searchTerm}&${PARAM_PAGE}${page}`)
+    fetch(`${PATH_BASE}${PATH_SEARCH}?${PARAM_SEARCH}${searchTerm}&${PARAM_PAGE}${page}&${PARAM_HITS_PER_PAGE}${DEFAULT_HITS_PER_PAGE}`)
       .then(response => response.json())
       .then(result => this.setTopStories(result))
       .catch(e => e);
@@ -70,7 +79,7 @@ class App extends Component {
   onDismiss = (id) => {
     const updatedResult = this.state.result.hits.filter(item => item.objectID !== id);
     this.setState({
-      result: { ...this.result, hits: updatedResult }
+      result: { ...this.state.result, hits: updatedResult }
     });
   }
 
@@ -86,8 +95,9 @@ class App extends Component {
   render() {
     const { searchTerm, result } = this.state;
     const page = (result && result.page) || 0
-    console.log('searchTerm', searchTerm)
-    console.log(result);
+    console.log('searchTerm', searchTerm);
+    console.log('state result', this.state.result);
+    console.log('api result', result);
 
     return (
       <div  className="page">
@@ -117,8 +127,6 @@ class App extends Component {
         }
         <div className="interactions">
           <Pagination
-            page={page}
-            prevClick={() => this.fetchTopStories(searchTerm, page - 1)}
             nextClick={() => this.fetchTopStories(searchTerm, page + 1)}
           />
         </div>
@@ -128,6 +136,7 @@ class App extends Component {
 }
 
 const Pagination = ({ onClick, page, prevClick, nextClick }) => (
+  // [TODO] Refactor
   <div>
     { page
       ? <Button onClick={prevClick}>
