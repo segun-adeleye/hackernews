@@ -78,6 +78,10 @@ class App extends Component {
       .catch(e => e);
   }
 
+  shouldFetchStories(searchTerm) {
+    return !this.state.results[searchTerm];
+  }
+
   componentDidMount() {
     const { searchTerm } = this.state;
     this.setState({ searchKey: searchTerm });
@@ -104,7 +108,10 @@ class App extends Component {
   onSearchSubmit = (e) => {
     const { searchTerm } = this.state;
     this.setState({ searchKey: searchTerm });
-    this.fetchTopStories(searchTerm, DEFAULT_PAGE);
+
+    if (this.shouldFetchStories(searchTerm)) {
+      this.fetchTopStories(searchTerm, DEFAULT_PAGE);
+    }
     e.preventDefault();
   }
 
