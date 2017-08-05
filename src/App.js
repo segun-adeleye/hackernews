@@ -4,7 +4,7 @@ import './App.css';
 
 const DEFAULT_QUERY = 'redux';
 const DEFAULT_PAGE = 0;
-const DEFAULT_HITS_PER_PAGE = 100;
+const DEFAULT_HITS_PER_PAGE = 5;
 
 const PATH_BASE = 'https://hn.algolia.com/api/v1';
 const PATH_SEARCH = '/search';
@@ -40,9 +40,9 @@ const list = [
  * @param {string} searchTerm - The searched term.
  * @return {function}
  */
-const isSearched = (searchTerm) => (item) => {
-  return !searchTerm || item.title.toLowerCase().includes(searchTerm.toLowerCase())
-}
+// const isSearched = (searchTerm) => (item) => {
+//   return !searchTerm || item.title.toLowerCase().includes(searchTerm.toLowerCase())
+// }
 
 /**
  * The App entry point
@@ -51,17 +51,23 @@ const isSearched = (searchTerm) => (item) => {
 class App extends Component {
   state = {
     list,
-    result: null,
+    results: null,
+    searchKey: '',
     searchTerm: DEFAULT_QUERY,
   }
 
   setTopStories(result) {
     const { hits, page } = result;
-    const oldHits = page !== 0 ? this.state.result.hits : [];
+    const { searchKey, results } = this.state;
+
+    const oldHits = (results && results[searchKey]) ? results[searchKey].hits : [];
     const updatedHits = [ ...oldHits, ...hits ];
 
     this.setState({
-      result: { hits: updatedHits, page }
+      results: {
+        ...results,
+        [searchKey]: { hits: updatedHits, page }
+      }
     });
   }
 
@@ -73,13 +79,21 @@ class App extends Component {
   }
 
   componentDidMount() {
-    this.fetchTopStories(this.state.searchTerm, DEFAULT_PAGE);
+    const { searchTerm } = this.state;
+    this.setState({ searchKey: searchTerm });
+    this.fetchTopStories(searchTerm, DEFAULT_PAGE);
   }
 
   onDismiss = (id) => {
-    const updatedResult = this.state.result.hits.filter(item => item.objectID !== id);
+    const { searchKey, results } = this.state;
+    const { hits, page } = results[searchKey];
+
+    const updatedResult = hits.filter(item => item.objectID !== id);
     this.setState({
-      result: { ...this.state.result, hits: updatedResult }
+      results: {
+        ...results,
+        [searchKey]: { hits: updatedResult, page }
+      }
     });
   }
 
@@ -88,16 +102,16 @@ class App extends Component {
   }
 
   onSearchSubmit = (e) => {
-    this.fetchTopStories(this.state.searchTerm, DEFAULT_PAGE);
+    const { searchTerm } = this.state;
+    this.setState({ searchKey: searchTerm });
+    this.fetchTopStories(searchTerm, DEFAULT_PAGE);
     e.preventDefault();
   }
 
   render() {
-    const { searchTerm, result } = this.state;
-    const page = (result && result.page) || 0
-    console.log('searchTerm', searchTerm);
-    console.log('state result', this.state.result);
-    console.log('api result', result);
+    const { searchKey, searchTerm, results } = this.state;
+    const page = (results && results[searchKey] && results[searchKey].page) || 0;
+    const list = (results && results[searchKey] && results[searchKey].hits) || [];
 
     return (
       <div  className="page">
@@ -118,16 +132,15 @@ class App extends Component {
           </Search>
         </div>
 
-        { result &&
-          <Table
-            list={result.hits}
-            pattern={searchTerm}
-            onDismiss={this.onDismiss}
-          />
-        }
+        <Table
+          list={list}
+          pattern={searchTerm}
+          onDismiss={this.onDismiss}
+        />
+
         <div className="interactions">
           <Pagination
-            nextClick={() => this.fetchTopStories(searchTerm, page + 1)}
+            nextClick={() => this.fetchTopStories(searchKey, page + 1)}
           />
         </div>
       </div>
@@ -166,10 +179,10 @@ const Search = ({ value, onChange, onSubmit, children }) => (
 
 const Table = ({ list, pattern, onDismiss }) => (
   <div className="table">
-    {list.filter(isSearched(pattern)).map(item =>
+    {list.map(item =>
       <div key={item.objectID} className="table-row">
         <span style={{ width: '40%' }}>
-          <a href={item.url} target="_blank">{item.title}</a>
+          <a href={item.url} target="_blank">{item.title || item.story_title}</a>
         </span>
         <span style={{ width: '30%' }}>
           {item.author}
